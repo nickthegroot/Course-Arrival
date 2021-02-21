@@ -16,6 +16,50 @@ type course struct {
 	PrereqID string `json:"-"`
 }
 
+type department string
+
+type coursePlan struct {
+	Courses []course `json:"course_plan"`
+	Dot	string `json:"dot"`
+}
+
+func (d *department) getDeptCourses(db *sql.DB) ([]course, error) {
+	rows, err := db.Query(`
+		SELECT c.id, c.title, c.units, c.description, c.upper_only, c.grad_only, d.group
+		FROM department d
+		JOIN department_prerequisites dp ON d.group = dp.group
+		JOIN courses c on dp.course = c.id
+		WHERE d.code = $1
+	`, d)
+
+	if err != nil {
+		log.Fatal(err)
+        return nil, err
+    }
+
+	defer rows.Close()
+
+	groups := make(map[string][]course)
+
+	for rows.Next() {
+		var c course
+		if err := rows.Scan(&c.ID, &c.Title, &c.Units, &c.Description, &c.UpperDivOnly, &c.GradOnly, &c.PrereqID); err != nil {
+			log.Fatal(err)
+			return nil, err
+		}
+		groups[c.PrereqID] = append(groups[c.PrereqID], c)
+	}
+
+	picks := []course{}
+	for _, courses := range groups {
+		randIdx := rand.Intn(len(courses))
+		pick := courses[randIdx]
+		picks = append(picks, pick)
+	}
+
+	return picks, nil
+}
+
 func (c *course) getCourse(db *sql.DB) error {
     return db.QueryRow(
 		"SELECT c.title, c.units, c.description, c.upper_only, c.grad_only FROM courses c WHERE c.ID = $1",

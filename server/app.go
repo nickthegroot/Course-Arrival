@@ -75,6 +75,28 @@ func (a *App) getFullPrerequisites(w http.ResponseWriter, r *http.Request) {
 	startC.getCourse(a.DB)
 	
 	queue := []course{startC}
+	respondWithCoursePlan(w, r, a, queue)
+}
+
+func (a *App) getCoursePlan(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, found := vars["id"]
+	if !found {
+		respondWithError(w, http.StatusBadRequest, "Invalid Dept ID")
+		return
+	}
+
+	dept := department(id)
+	queue, err := dept.getDeptCourses(a.DB)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		return
+	}
+	
+	respondWithCoursePlan(w, r, a, queue)
+}
+
+func respondWithCoursePlan(w http.ResponseWriter, r *http.Request, a *App, queue []course) {
 	courseMap := make(map[string]course)
 	dependencyMap := make(map[string][]string)
 	graphMap := make(map[string]int)
@@ -105,21 +127,28 @@ func (a *App) getFullPrerequisites(w http.ResponseWriter, r *http.Request) {
 		i++
 	}
 
+	dot := "digraph {\n"
+
+	for courseID, graphID := range graphMap {
+		dot += fmt.Sprintf("%d [label=\"%s\"]\n", graphID, courseID)
+	}
+
 	courseGraph := graph.New(len(graphMap))
 	for courseID, dependencies := range dependencyMap {
 		courseGraphID := graphMap[courseID]
 		for _, dependentID := range dependencies {
 			dependentGraphID := graphMap[dependentID]
-			log.Println(courseID, courseGraphID, dependentGraphID)
+			dot += fmt.Sprintf("%d -> %d\n", dependentGraphID, courseGraphID)
 			courseGraph.Add(dependentGraphID, courseGraphID)
 		}
 	}
 
-	log.Println(graphMap)
+	dot += "}"
 	log.Println("Acyclic: ", graph.Acyclic(courseGraph))
 	order, ok := graph.TopSort(courseGraph)
 	if !ok {
 		respondWithError(w, http.StatusInternalServerError, "Something went wrong")
+		fmt.Println(dot)
 		return
 	}
 
@@ -130,7 +159,12 @@ func (a *App) getFullPrerequisites(w http.ResponseWriter, r *http.Request) {
 		result = append(result, course)
 	}
 
-	respondWithJSON(w, http.StatusOK, result)
+	resp := coursePlan{
+		Courses: result,
+		Dot: dot,
+	}
+
+	respondWithJSON(w, http.StatusOK, resp)
 }
 
 func respondWithError(w http.ResponseWriter, code int, message string) {
@@ -141,6 +175,7 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
     response, _ := json.Marshal(payload)
 
     w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
     w.WriteHeader(code)
     w.Write(response)
 }
@@ -148,4 +183,5 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 func (a *App) initializeRoutes() {
     a.Router.HandleFunc("/prerequisites/{id}", a.getPrerequisites).Methods("GET")
 	a.Router.HandleFunc("/full_prerequisites/{id}", a.getFullPrerequisites).Methods("GET")
+	a.Router.HandleFunc("/course_plan/{id}", a.getCoursePlan).Methods("GET")
 }
