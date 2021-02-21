@@ -2,7 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
+	"log"
+	"math/rand"
 )
 
 type course struct {
@@ -12,6 +13,7 @@ type course struct {
 	Description  string `json:"description"`
 	UpperDivOnly bool `json:"upper_div_only"`
 	GradOnly     bool `json:"grad_only"`
+	PrereqID string `json:"-"`
 }
 
 func (c *course) getCourse(db *sql.DB) error {
@@ -23,30 +25,37 @@ func (c *course) getCourse(db *sql.DB) error {
 
 func (c *course) getPreqs(db *sql.DB) ([]course, error) {
 	rows, err := db.Query(`
-		SELECT c.id, c.title, c.units, c.description, c.upper_only, c.grad_only
-		FROM course_prerequisites cp
-		JOIN prerequisites p ON cp.prerequisite_id = p.group_id
+		SELECT c.id, c.title, c.units, c.description, c.upper_only, c.grad_only, p.group_id
+		FROM courses_prerequisites cp
+		JOIN prerequisites p ON cp.prerequisites_id = p.group_id
 		JOIN courses c ON p.courses = c.id
 		WHERE cp.id = $1
 	`, c.ID)
 
-	fmt.Println(rows)
-
 	if err != nil {
+		log.Fatal(err)
         return nil, err
     }
 
 	defer rows.Close()
 
-	courses := []course{}
+	groups := make(map[string][]course)
 
 	for rows.Next() {
 		var c course
-		if err := rows.Scan(&c.ID, &c.Units, &c.Description, &c.UpperDivOnly, &c.GradOnly); err != nil {
+		if err := rows.Scan(&c.ID, &c.Title, &c.Units, &c.Description, &c.UpperDivOnly, &c.GradOnly, &c.PrereqID); err != nil {
+			log.Fatal(err)
 			return nil, err
 		}
-		courses = append(courses, c)
+		groups[c.PrereqID] = append(groups[c.PrereqID], c)
 	}
 
-	return courses, nil
+	picks := []course{}
+	for _, courses := range groups {
+		randIdx := rand.Intn(len(courses))
+		pick := courses[randIdx]
+		picks = append(picks, pick)
+	}
+
+	return picks, nil
 }
