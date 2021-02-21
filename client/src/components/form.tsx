@@ -1,6 +1,7 @@
 import React, { FC } from "react";
 import { useFormik } from "formik";
 import Majors from "../data/majors";
+import { Button } from "./button";
 
 export interface FormValues {
   major: string;
@@ -24,12 +25,12 @@ export const CourseForm: FC<Props> = ({ handleSubmit }) => {
       >
         <label htmlFor="major" style={{ fontFamily: 'SF Pro Display', fontWeight: 250, }}>Major</label>
         <select name="major" onChange={formik.handleChange}>
-          {Object.entries(Majors).map(([name, code]) => (
+          {Object.entries(Majors).map(([code, name]) => (
             <option value={code}>{name}</option>
           ))}
         </select>
 
-        <button type="submit">Submit</button>
+        <Button type="submit">Submit</Button>
       </form>
     </div>
   );

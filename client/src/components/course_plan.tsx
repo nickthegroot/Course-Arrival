@@ -7,7 +7,7 @@ interface Props {
 
 const CoursePlan: FC<Props> = ({ schedule }) => (
     <>
-    {schedule.course_plan.map(course => (
+    {schedule.course_plan.map((course, i) => (
         <div style={{
             width: '80%',
             backgroundColor: 'white',
@@ -15,8 +15,8 @@ const CoursePlan: FC<Props> = ({ schedule }) => (
             margin: 10,
             padding: 10,
             fontFamily: 'SF Pro Display',
-        }}>
-            <p>{course.id}: <span style={{ fontWeight: 100 }}>{course.title}</span></p>
+        }} key={i}>
+            <p>#{i+1}: {course.id} <span style={{ fontWeight: 100 }}>{course.title}</span></p>
             <p style={{ fontWeight: 100 }}>{course.description}</p>
         </div>
     ))}

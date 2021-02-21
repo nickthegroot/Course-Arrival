@@ -4,6 +4,7 @@ import { Graphviz } from 'graphviz-react';
 import { Header, Subheader } from '../components/header'
 import { CourseSchedule } from '../types';
 import CoursePlan from '../components/course_plan';
+import { Button } from '../components/button';
 
 const Container = styled.div({
     display: 'flex',
@@ -23,9 +24,10 @@ const DotContainer = styled.div({
 
 interface Props {
     schedule: CourseSchedule;
+    refresh: () => void;
 }
 
-const CoursePage: FC<Props> = ({ schedule }) => {
+const CoursePage: FC<Props> = ({ schedule, refresh }) => {
     return (
         <Container>
             <Header/>
@@ -35,6 +37,9 @@ const CoursePage: FC<Props> = ({ schedule }) => {
 
             
             <CoursePlan schedule={schedule} />
+            <Button onClick={refresh}>Refresh</Button>
+
+            <br />
             <DotContainer>
                 <Graphviz dot={schedule.dot} />
             </DotContainer>
